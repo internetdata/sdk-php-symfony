@@ -27,8 +27,10 @@ InternetData\Symfony\InternetDataBundle::class => ["all" => true],
 ```yaml
 # config/packages/internetdata.yaml
 internetdata:
-    api_key: "%env(INTERNETDATA_API_KEY)%"
+    api_key: "%env(default::INTERNETDATA_API_KEY)%"
 ```
+
+`default::` reads an unset `INTERNETDATA_API_KEY` as no key, so the bundle runs keyless until you set one; a plain `%env(INTERNETDATA_API_KEY)%` makes every request a 500 while the variable is unset.
 
 ```php
 use InternetData\Symfony\InternetDataListener;
@@ -52,7 +54,7 @@ Set a `block_condition` and a matching request is answered with `403` and never 
 ```yaml
 # config/packages/internetdata.yaml
 internetdata:
-    api_key: "%env(INTERNETDATA_API_KEY)%"
+    api_key: "%env(default::INTERNETDATA_API_KEY)%"
     block_condition:
         location:
             country: [CU, IR, KP]
