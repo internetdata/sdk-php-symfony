@@ -1,0 +1,131 @@
+<?php
+
+declare(strict_types=1);
+
+namespace InternetData\Symfony;
+
+use InternetData\Middleware\Core;
+use InternetData\Middleware\Options;
+use Psr\SimpleCache\CacheInterface;
+use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+
+/**
+ * Registers the listener from `config/packages/internetdata.yaml`.
+ *
+ * An AbstractBundle, so there is no separate Extension or Configuration class and the
+ * whole wiring is this file.
+ */
+final class InternetDataBundle extends AbstractBundle
+{
+    protected string $extensionAlias = 'internetdata';
+
+    public function configure(DefinitionConfigurator $definition): void
+    {
+        $definition->rootNode()
+            ->children()
+                ->scalarNode('api_key')->defaultNull()->end()
+                ->scalarNode('base_url')->defaultNull()->end()
+                ->floatNode('timeout')->defaultValue(2.5)->end()
+                ->integerNode('retries')->defaultValue(0)->end()
+                ->booleanNode('fail_closed')->defaultFalse()->end()
+                ->enumNode('on_missing_field')
+                    ->values(['warn', 'throw', 'ignore'])->defaultValue('warn')->end()
+                ->variableNode('block_condition')->defaultNull()->end()
+                // A callable cannot live in YAML, so the common case - an edge that
+                // writes the address into its own header - is a header NAME instead.
+                // Anything more exotic means replacing the internetdata.listener
+                // service, which is the Symfony answer rather than a config key.
+                ->scalarNode('client_ip_header')->defaultNull()->end()
+                // Paths never looked up, such as a health check or static
+                // assets: each a regular expression matched against the path,
+                // as `access_control`'s `path` is. Refused here if one will not
+                // compile, rather than skipping nothing on every request.
+                // The cache pool answers are kept in between requests: under
+                // PHP-FPM the client, and a cache of its own, lasts one request.
+                // Unset, `cache.app` where FrameworkBundle defines it; false keeps
+                // them in the client alone.
+                ->scalarNode('cache_pool')->defaultNull()->end()
+                ->arrayNode('skip_paths')
+                    ->scalarPrototype()
+                        ->validate()
+                            ->ifTrue(static fn (mixed $pattern): bool => !is_string($pattern)
+                                || @preg_match('{' . $pattern . '}', '') === false)
+                            ->thenInvalid('%s is not a regular expression')
+                        ->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /** @param array<string, mixed> $config */
+    public function loadExtension(array $config, $container, ContainerBuilder $builder): void
+    {
+        $options = new Definition(Options::class);
+        $options->setArguments([
+            null,
+            $config['api_key'] ?? null,
+            $config['base_url'] ?? null,
+            (float) ($config['timeout'] ?? 2.5),
+            (int) ($config['retries'] ?? 0),
+            null,
+            $config['block_condition'] ?? null,
+            (bool) ($config['fail_closed'] ?? false),
+            (string) ($config['on_missing_field'] ?? 'warn'),
+            self::skip($config['skip_paths'] ?? []),
+            null,
+            self::store($config['cache_pool'] ?? null),
+        ]);
+
+        $header = $config['client_ip_header'] ?? null;
+        if ($header === null) {
+            $selector = new Definition('Closure');
+            $selector->setFactory([Selectors::class, 'default']);
+        } else {
+            $selector = new Definition('Closure');
+            $selector->setFactory([Selectors::class, 'header']);
+            $selector->setArguments([$header]);
+        }
+
+        $core = new Definition(Core::class);
+        $core->setArguments([$options, $selector]);
+
+        $listener = new Definition(InternetDataListener::class);
+        $listener->setArguments([$core]);
+        $listener->addTag('kernel.event_subscriber');
+        $listener->setPublic(true);
+
+        $builder->setDefinition('internetdata.listener', $listener);
+    }
+
+    private static function store(string|bool|null $pool): ?Definition
+    {
+        if ($pool === false || $pool === '') {
+            return null;
+        }
+        // The default pool may be absent without FrameworkBundle; one named here may not.
+        $reference = $pool === null || $pool === true
+            ? new Reference('cache.app', ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
+            : new Reference($pool);
+        $store = new Definition(CacheInterface::class);
+        $store->setFactory([Stores::class, 'psr16']);
+        $store->setArguments([$reference]);
+        return $store;
+    }
+
+    /** @param list<string> $paths */
+    private static function skip(array $paths): ?Definition
+    {
+        if ($paths === []) {
+            return null;
+        }
+        $skip = new Definition('Closure');
+        $skip->setFactory([Skips::class, 'paths']);
+        $skip->setArguments([array_values($paths)]);
+        return $skip;
+    }
+}
