@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.0.2 - 2026-11-19
+
+### Fixes
+
+- Require internetdata 2.13.2: a reduced answer is cached a minute at most ([`987f5d4`](https://github.com/internetdata/sdk-php-symfony/commit/987f5d482ed6728203fc5a63243075e2a80b2ff4))
+
 ## 1.0.1 - 2026-11-19
 
 ### Fixes
