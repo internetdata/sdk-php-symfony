@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.0.1 - 2026-11-19
+
+### Fixes
+
+- Require internetdata 2.13.1: cap_reached on a paid answer past its overage cap ([`948c22b`](https://github.com/internetdata/sdk-php-symfony/commit/948c22b3718d069f1734fdfd6d1000f8c0b05dd0))
+
 ## 1.0.0 - 2026-11-14
 
 ### Features
