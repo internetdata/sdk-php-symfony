@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.0.3 - 2026-11-20
+
+### Fixes
+
+- Require internetdata 2.13.3: the spec re-pinned to 2026.11.20 ([`3555700`](https://github.com/internetdata/sdk-php-symfony/commit/355570071402bd0f363dc0aa03a1a917c4560642))
+
 ## 1.0.2 - 2026-11-19
 
 ### Fixes
