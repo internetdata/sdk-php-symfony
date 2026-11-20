@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.0.4 - 2026-11-20
+
+### Fixes
+
+- Require internetdata 2.14.0: a paid domain answer's hosting, home page and linking domains ([`186cba7`](https://github.com/internetdata/sdk-php-symfony/commit/186cba75d1638cd08bbf76922673424e762f30dd))
+
 ## 1.0.3 - 2026-11-20
 
 ### Fixes
