@@ -2,6 +2,13 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.0.5 - 2026-11-22
+
+### Fixes
+
+- Require internetdata/internetdata 2.15.0, which reads is_bot and the bot row ([`97e8258`](https://github.com/internetdata/sdk-php-symfony/commit/97e8258d869dc0513dbd8c761ba5ff7d33231547))
+- README: a condition on isBot, which works on every plan ([`453cc44`](https://github.com/internetdata/sdk-php-symfony/commit/453cc44076b94a37c4ed5ff1ba152d9101e3c146))
+
 ## 1.0.4 - 2026-11-20
 
 ### Fixes
