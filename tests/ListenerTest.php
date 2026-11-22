@@ -310,6 +310,35 @@ final class ListenerTest extends TestCase
         self::assertCount(1, $stub->calls);
     }
 
+    // `is_bot` is on every plan, so the condition is judged without a key, as the bundle's
+    // configuration names it, from a public visitor read through the framework's own accessor.
+    public function testAConfiguredBotConditionRefusesABotsAddressAndLetsAnotherThrough(): void
+    {
+        $listener = function (array $answer): array {
+            $builder = new ContainerBuilder();
+            $builder->setParameter('kernel.environment', 'test');
+            $builder->setParameter('kernel.build_dir', sys_get_temp_dir());
+            (new InternetDataBundle())->getContainerExtension()->load([['block_condition' => ['isBot' => true]]], $builder);
+            $builder->register('test.client', Client::class)->setSynthetic(true)->setPublic(true);
+            $builder->getDefinition('internetdata.listener')->getArgument(0)->getArgument(0)
+                ->replaceArgument(0, new Reference('test.client'));
+            $builder->compile();
+            $stub = self::serving($answer);
+            $builder->set('test.client', self::client($stub));
+            return [$builder->get('internetdata.listener'), $stub];
+        };
+
+        [$bot, $botStub] = $listener(Stub::answer('66.249.66.1', ['is_bot' => true]));
+        self::assertSame(403, self::dispatch($bot, self::request(ip: '66.249.66.1'))?->getStatusCode());
+        self::assertSame(['/66.249.66.1'], $botStub->calls);
+
+        [$person, $personStub] = $listener(Stub::answer(self::PUBLIC_IP));
+        $request = self::request(ip: self::PUBLIC_IP);
+        self::assertNull(self::dispatch($person, $request));
+        self::assertSame(['/' . self::PUBLIC_IP], $personStub->calls);
+        self::assertFalse(InternetDataListener::lookup($request)?->result->isBot);
+    }
+
     /**
      * `skip_paths` as `config/packages/internetdata.yaml` gives it: a matching path is
      * never looked up and carries no answer, and any other path still is.
