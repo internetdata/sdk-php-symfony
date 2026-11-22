@@ -15,7 +15,7 @@ composer require internetdata/symfony
 
 Requires PHP 8.2 or newer and Symfony 6.4, 7 or 8.
 
-Without an API key a lookup is on Unlimited, the free plan: the country, the network and the company behind the address, Tor, relay, anycast, carrier and satellite space and the service flags, with no daily or monthly cap. Every lookup your app makes comes from your server's one address, though, so a busy site will see bursts refused. A paid plan answers every field, VPN, the proxy flags, hosting, CDN and the city among them; create a key in the [console](https://app.internetdata.io). A free account tries every field.
+Without an API key a lookup is on Unlimited, the free plan: the country, the network and the company behind the address, Tor, relay, anycast, carrier and satellite space, bots and the service flags, with no daily or monthly cap. Every lookup your app makes comes from your server's one address, though, so a busy site will see bursts refused. A paid plan answers every field, VPN, the proxy flags, hosting, CDN and the city among them; create a key in the [console](https://app.internetdata.io). A free account tries every field.
 
 Register the bundle and configure it:
 
@@ -60,11 +60,12 @@ internetdata:
             country: [CU, IR, KP]
 ```
 
-A condition is written in the shape of a `Result`, and only the members you name are considered, so it can refuse on anything in the answer. The country works on every plan, and so do the first two of these:
+A condition is written in the shape of a `Result`, and only the members you name are considered, so it can refuse on anything in the answer. The country works on every plan, and so do the first three of these:
 
 ```yaml
 block_condition: { asn: { type: hosting } }                                # the network's type
 block_condition: [{ isAnycast: true }, { isSatellite: true }]              # anycast and satellite space
+block_condition: { isBot: true }                                           # crawlers, monitors and scanners
 block_condition: [{ isHosting: true }, { isCdn: true }]                    # traffic from servers, not people
 block_condition: [{ isVpn: true }, { isTor: true }, { isResproxy: true }]  # anonymity: a list is OR
 block_condition: { isVpn: true, vpn: { provider: nordvpn } }               # one provider
