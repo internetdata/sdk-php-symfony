@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.0.6 - 2026-11-23
+
+### Fixes
+
+- Require internetdata/internetdata 2.15.1, on spec 2026.11.22 ([`43efbd4`](https://github.com/internetdata/sdk-php-symfony/commit/43efbd4cd9660f5eb78855a237b6319463983909))
+
 ## 1.0.5 - 2026-11-22
 
 ### Fixes
