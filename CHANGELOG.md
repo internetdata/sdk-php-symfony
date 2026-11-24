@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.0.7 - 2026-11-24
+
+### Features
+
+- Require internetdata/internetdata 2.16.0: a condition matches a list member's elements ([`d2743a7`](https://github.com/internetdata/sdk-php-symfony/commit/d2743a72af2706d9739fbdca6e0a7d8ed71daee1))
+
 ## 1.0.6 - 2026-11-23
 
 ### Fixes
