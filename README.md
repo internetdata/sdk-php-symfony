@@ -72,7 +72,7 @@ block_condition: { isVpn: true, vpn: { provider: nordvpn } }               # one
 block_condition: { resproxy: { hits: { gte: 5 } } }                        # a numeric threshold
 ```
 
-Values are matched by equality, strings without regard to case. A LIST means any-of. A map of `gte`/`gt`/`lte`/`lt` compares numbers, and every bound you give must hold, so two of them are a range. Members set to `false` or `null` are ignored, so a condition states the signals you act on; one that constrains nothing would match every request, and is refused when the middleware is built rather than silently blocking all your traffic.
+Values are matched by equality, strings without regard to case. A LIST means any-of. A map of `gte`/`gt`/`lte`/`lt` compares numbers, and every bound you give must hold, so two of them are a range. A member the answer holds as a list, such as `web`'s rows or `pubproxy.protocols`, matches when any one element does, and a nested condition must hold within that one element. Members set to `false` or `null` are ignored, so a condition states the signals you act on; one that constrains nothing would match every request, and is refused when the middleware is built rather than silently blocking all your traffic.
 
 ## Where the client address comes from
 
