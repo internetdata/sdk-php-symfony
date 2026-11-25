@@ -74,6 +74,20 @@ block_condition: { resproxy: { hits: { gte: 5 } } }                        # a n
 
 Values are matched by equality, strings without regard to case. A LIST means any-of. A map of `gte`/`gt`/`lte`/`lt` compares numbers, and every bound you give must hold, so two of them are a range. A member the answer holds as a list, such as `web`'s rows or `pubproxy.protocols`, matches when any one element does, and a nested condition must hold within that one element. Members set to `false` or `null` are ignored, so a condition states the signals you act on; one that constrains nothing would match every request, and is refused when the middleware is built rather than silently blocking all your traffic.
 
+## Let a verified crawler through
+
+Set `allow_bots` and the bundle sends each request's own `User-Agent` with its lookup, so the answer says whose bot it names and whether this address bears that out. A request whose verdict is `verified`, a crawler its operator vouches for here, is never refused, whatever `block_condition` matches; its answer is still attached:
+
+```yaml
+# config/packages/internetdata.yaml
+internetdata:
+    api_key: "%env(default::INTERNETDATA_API_KEY)%"
+    allow_bots: true
+    block_condition: { isHosting: true }
+```
+
+With it on, a condition can also refuse a forged crawler: `{ userAgent: { verdict: spoofed } }`. A request with no `User-Agent` sends none. Only an answer with every field carries the verdict, so a keyless client never gets one and nothing is let through by it; the bundle warns once when an agent was sent and the answer had no verdict. Off by default, since on, answers are cached per address and user agent rather than per address.
+
 ## Where the client address comes from
 
 This is the setting that decides whether any of the above works, and it is the one thing only you can get right.
