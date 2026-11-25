@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.1.0 - 2026-11-25
+
+### Features
+
+- Add allow_bots on internetdata/internetdata 2.17.0: let a verified crawler through ([`a777096`](https://github.com/internetdata/sdk-php-symfony/commit/a777096012d9e0ee23d99f13618f1e10b707641e))
+
 ## 1.0.7 - 2026-11-24
 
 ### Features
