@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.1.1 - 2026-11-26
+
+### Features
+
+- Require internetdata/internetdata 2.18.0: a keyless answer reads without the bot, carrier, satellite and service flags ([`1298a1b`](https://github.com/internetdata/sdk-php-symfony/commit/1298a1b4f8f77e44c0cf8d87659c46ba2fd59990))
+
 ## 1.1.0 - 2026-11-25
 
 ### Features
