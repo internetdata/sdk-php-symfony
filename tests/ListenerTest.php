@@ -310,8 +310,8 @@ final class ListenerTest extends TestCase
         self::assertCount(1, $stub->calls);
     }
 
-    // `is_bot` is on every plan, so the condition is judged without a key, as the bundle's
-    // configuration names it, from a public visitor read through the framework's own accessor.
+    // A bot is a paid answer's, so the condition is judged on an answer that serves `is_bot`, as the
+    // bundle's configuration names it, from a public visitor read through the framework's own accessor.
     public function testAConfiguredBotConditionRefusesABotsAddressAndLetsAnotherThrough(): void
     {
         $listener = function (array $answer): array {
@@ -332,7 +332,7 @@ final class ListenerTest extends TestCase
         self::assertSame(403, self::dispatch($bot, self::request(ip: '66.249.66.1'))?->getStatusCode());
         self::assertSame(['/66.249.66.1'], $botStub->calls);
 
-        [$person, $personStub] = $listener(Stub::answer(self::PUBLIC_IP));
+        [$person, $personStub] = $listener(Stub::answer(self::PUBLIC_IP, ['is_bot' => false]));
         $request = self::request(ip: self::PUBLIC_IP);
         self::assertNull(self::dispatch($person, $request));
         self::assertSame(['/' . self::PUBLIC_IP], $personStub->calls);
