@@ -2,6 +2,12 @@
 
 What each release changed for you, newest first. Each line is a commit's summary, linked to its full description and diff.
 
+## 1.1.2 - 2026-11-27
+
+### Features
+
+- Require internetdata/internetdata 2.19.0: a keyless answer reads without the AS's type ([`f2ca9ee`](https://github.com/internetdata/sdk-php-symfony/commit/f2ca9eeee4dcf1a1785f3b2bb2804ad10b8b7b68))
+
 ## 1.1.1 - 2026-11-26
 
 ### Features
