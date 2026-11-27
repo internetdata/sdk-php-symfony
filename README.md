@@ -15,7 +15,7 @@ composer require internetdata/symfony
 
 Requires PHP 8.2 or newer and Symfony 6.4, 7 or 8.
 
-Without an API key a lookup is on Unlimited, the free plan: the country, the network and the company behind the address, Tor, relay and anycast space, with no daily or monthly cap. Every lookup your app makes comes from your server's one address, though, so a busy site will see bursts refused. A paid plan answers every field, VPN, the proxy flags, hosting, CDN, bots, carrier and satellite space, the service flags and the city among them; create a key in the [console](https://app.internetdata.io). A free account tries every field.
+Without an API key a lookup is on Unlimited, the free plan: the country, the network and the company behind the address, Tor, relay and anycast space, with no daily or monthly cap. Every lookup your app makes comes from your server's one address, though, so a busy site will see bursts refused. A paid plan answers every field, VPN, the proxy flags, hosting, CDN, bots, carrier and satellite space, the service flags, the network's type and the city among them; create a key in the [console](https://app.internetdata.io). A free account tries every field.
 
 Register the bundle and configure it:
 
@@ -60,11 +60,11 @@ internetdata:
             country: [CU, IR, KP]
 ```
 
-A condition is written in the shape of a `Result`, and only the members you name are considered, so it can refuse on anything in the answer. The country works on every plan, and so do the first two of these:
+A condition is written in the shape of a `Result`, and only the members you name are considered, so it can refuse on anything in the answer. The country works on every plan, and so does the first of these:
 
 ```yaml
-block_condition: { asn: { type: hosting } }                                # the network's type
 block_condition: { isAnycast: true }                                       # anycast space
+block_condition: { asn: { type: hosting } }                                # the network's type
 block_condition: { isBot: true }                                           # crawlers, monitors and scanners
 block_condition: [{ isSatellite: true }, { isCarrier: true }]              # satellite and mobile carrier space
 block_condition: [{ isHosting: true }, { isCdn: true }]                    # traffic from servers, not people
@@ -135,13 +135,13 @@ Beyond a few million distinct visitors a day, stop calling the API per request: 
 
 ## Absent is not false
 
-Unlimited, with a key or without one, leaves out `isVpn`, `isHosting`, `isCdn`, the four proxy flags, `isBot`, `isCarrier`, `isSatellite` and the service flags, the detail behind them, and the paid members inside `location`, `asn`, `company` and `abuse`, such as `location->city`. A property your plan does not include is `null`, which means "not in your plan" rather than "checked, and no". The eight flags `isBot`, `isCarrier`, `isSatellite`, `isSsh`, `isSmtp`, `isWeb`, `isDnsResolver` and `isBittorrent` are plain booleans and read `false` there, though a condition naming one is still warned about.
+Unlimited, with a key or without one, leaves out `isVpn`, `isHosting`, `isCdn`, the four proxy flags, `isBot`, `isCarrier`, `isSatellite` and the service flags, the detail behind them, and the paid members inside `location`, `asn`, `company` and `abuse`, such as `location->city` and `asn->type`. A property your plan does not include is `null`, which means "not in your plan" rather than "checked, and no". The eight flags `isBot`, `isCarrier`, `isSatellite`, `isSsh`, `isSmtp`, `isWeb`, `isDnsResolver` and `isBittorrent` are plain booleans and read `false` there, and `asn->type` is a plain string and reads `''`, though a condition naming one is still warned about.
 
 ```php
 $lookup->result->isVpn ?? false   // when you only want the flag
 ```
 
-A `block_condition` naming a member your plan does not serve, `location.city` on Unlimited included, can never match, so the middleware warns, once each time the application boots, instead of failing silently. Set `on_missing_field` to `throw` to make it an error.
+A `block_condition` naming a member your plan does not serve, `location.city` or `asn.type` on Unlimited included, can never match, so the middleware warns, once each time the application boots, instead of failing silently. Set `on_missing_field` to `throw` to make it an error.
 
 ## Other Libraries
 
