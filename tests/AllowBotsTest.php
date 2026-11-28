@@ -6,6 +6,9 @@ namespace InternetData\Symfony\Tests;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\SimpleCache\CacheInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -29,22 +32,32 @@ final class AllowBotsTest extends TestCase
 {
     private const PEER = '66.249.66.1';
 
+    private const OTHER = '66.249.66.2';
+
     private const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+
+    private const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
 
     private Stub $stub;
 
     /** @var list<string> */
     private array $warnings = [];
 
-    /** @param array<string, mixed> $config */
-    private function kernel(?string $verdict, array $config): HttpKernel
+    /**
+     * @param array<string, mixed> $config
+     * @param ?CacheInterface $pool The store the client keeps its answers in, where the framework's pool is one
+     */
+    private function kernel(?string $verdict, array $config, ?CacheInterface $pool = null): HttpKernel
     {
         $members = ['is_hosting' => true];
         if ($verdict !== null) {
             $members['user_agent'] = ['agent' => 'Googlebot', 'kind' => 'bot', 'verdict' => $verdict];
         }
-        $body = Stub::answer(self::PEER, $members);
-        $this->stub = new Stub(Stub::lookups([self::PEER => ['status' => 200, 'body' => $body]]));
+        $routes = [];
+        foreach ([self::PEER, self::OTHER] as $ip) {
+            $routes[$ip] = ['status' => 200, 'body' => Stub::answer($ip, $members)];
+        }
+        $this->stub = new Stub(Stub::lookups($routes));
 
         $builder = new ContainerBuilder();
         $builder->setParameter('kernel.environment', 'test');
@@ -57,7 +70,9 @@ final class AllowBotsTest extends TestCase
         $options->replaceArgument(0, new Reference('test.client'));
         $options->replaceArgument(10, new Reference('test.on_warn'));
         $builder->compile();
-        $builder->set('test.client', new Client(new Options(cache: false, retries: 0, httpClient: $this->stub->client)));
+        $builder->set('test.client', new Client($pool === null
+            ? new Options(cache: false, retries: 0, httpClient: $this->stub->client)
+            : new Options(retries: 0, cacheStore: $pool, httpClient: $this->stub->client)));
         $builder->set('test.on_warn', function (string $m): void {
             $this->warnings[] = $m;
         });
@@ -75,9 +90,9 @@ final class AllowBotsTest extends TestCase
         return new HttpKernel($dispatcher, $controllers, new RequestStack(), new ArgumentResolver());
     }
 
-    private static function visit(HttpKernel $kernel, string $agent = self::GOOGLEBOT): int
+    private static function visit(HttpKernel $kernel, string $agent = self::GOOGLEBOT, string $peer = self::PEER): int
     {
-        return $kernel->handle(Request::create('/', server: ['REMOTE_ADDR' => self::PEER, 'HTTP_USER_AGENT' => $agent]))
+        return $kernel->handle(Request::create('/', server: ['REMOTE_ADDR' => $peer, 'HTTP_USER_AGENT' => $agent]))
             ->getStatusCode();
     }
 
@@ -93,6 +108,41 @@ final class AllowBotsTest extends TestCase
     {
         self::assertSame(200, self::visit($this->kernel('verified', ['allow_bots' => true])));
         self::assertSame(['user_agent' => self::GOOGLEBOT], $this->sent());
+    }
+
+    /**
+     * Under PHP-FPM each request builds the kernel and the listener in it, so the four agents an
+     * address may be looked up with have to be remembered in the client's store.
+     */
+    public function testTheBoundOnAnAddressesAgentsHoldsAcrossRequestsInTheClientsStore(): void
+    {
+        $pool = new Psr16Cache(new ArrayAdapter());
+        $agent = static fn (int $n): string => "Mozilla/5.0 (compatible; Examplebot/{$n}.0)";
+        // One request on a kernel built anew: its status, and the queries that reached the origin.
+        $visit = function (int $n, string $peer = self::PEER) use ($pool, $agent): array {
+            $kernel = $this->kernel('verified', ['allow_bots' => true, 'block_condition' => ['isHosting' => true]], $pool);
+            $status = self::visit($kernel, $agent($n), $peer);
+            return [$status, array_map(static function ($request): array {
+                parse_str($request->getUri()->getQuery(), $query);
+                return $query;
+            }, $this->stub->requests)];
+        };
+
+        $statuses = [];
+        for ($n = 1; $n <= 5; $n++) {
+            [$status, $sent] = $visit($n);
+            $statuses[] = $status;
+            self::assertSame($n <= 4 ? [['user_agent' => $agent($n)]] : [[]], $sent, "agent {$n}");
+        }
+        self::assertSame([200, 200, 200, 200, 403], $statuses, 'the fifth agent is past the bound, and none is sent');
+
+        [$status, $sent] = $visit(1);
+        self::assertSame(200, $status, 'a known agent is still sent');
+        self::assertNotContains([], $sent, 'and no bare lookup stands in for it');
+
+        [$status, $sent] = $visit(5, self::OTHER);
+        self::assertSame(200, $status, 'another address has its own four');
+        self::assertSame([['user_agent' => $agent(5)]], $sent);
     }
 
     /** @return array<string, array{0: string, 1: int}> */
@@ -122,14 +172,16 @@ final class AllowBotsTest extends TestCase
         self::assertSame([], $this->sent());
     }
 
-    // `Request::create` sends `Symfony` as the User-Agent unless told otherwise, so an
-    // absent header is one removed from the request: the first case proves the agent
-    // would otherwise be sent.
-    public function testRequestCreatesOwnUserAgentIsSentUnlessRemoved(): void
+    // Only an agent naming a crawler is sent. `Request::create` sends `Symfony` as the
+    // User-Agent unless told otherwise, and a browser's agent names no crawler either.
+    public function testAnAgentNamingNoCrawlerIsNotSent(): void
     {
         $request = Request::create('/', server: ['REMOTE_ADDR' => self::PEER]);
         self::assertSame(200, $this->kernel(null, ['allow_bots' => true])->handle($request)->getStatusCode());
-        self::assertSame(['user_agent' => 'Symfony'], $this->sent());
+        self::assertSame([], $this->sent());
+
+        self::assertSame(200, self::visit($this->kernel(null, ['allow_bots' => true]), self::CHROME));
+        self::assertSame([], $this->sent());
     }
 
     public function testAnAbsentUserAgentSendsNone(): void
